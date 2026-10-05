@@ -1,0 +1,7 @@
+sample_id,source_dataset,clean_url,domain,label
+uci_phishing_websites_000000,uci_phishing_websites,http://1,1,0
+uci_phishing_websites_000002,uci_phishing_websites,http://0,0,0
+uci_phishing_websites_000004,uci_phishing_websites,http://0,0,1
+uci_phishing_websites_000010,uci_phishing_websites,http://1,1,1
+uci_phishing_websites_000015,uci_phishing_websites,http://-1,-1,0
+uci_phishing_websites_000024,uci_phishing_websites,http://-1,-1,1

@@ -1,0 +1,16 @@
+dataset_id,dataset_name,modality,source,role,usage,primary_task,priority,status
+email_ceas08,CEAS-08,email,Zenodo,core,training_and_validation,email_phishing_detection,core,planned
+email_nazario,Nazario,email,Zenodo,core,external_validation,phishing_email_detection,core,planned
+url_uci327,UCI Phishing Websites,url,University_of_California_Irvine,core,training_and_validation,url_phishing_detection,core,planned
+email_enron,Enron,email,Zenodo,external,external_validation,legitimate_email_generalization,external,planned
+email_ling,Ling,email,Zenodo,external,external_validation,email_classification,external,planned
+email_spamassassin,SpamAssassin,email,Zenodo,external,external_validation,spam_and_phishing_generalization,external,planned
+email_trec05,TREC-05,email,Zenodo,external,external_validation,email_classification,external,planned
+email_trec06,TREC-06,email,Zenodo,external,external_validation,email_classification,external,planned
+email_trec07,TREC-07,email,Zenodo,external,external_validation,email_classification,external,planned
+email_nigerian_fraud,Nigerian_Fraud,email,Zenodo,external,external_validation,fraud_email_detection,external,planned
+email_nigerian5,Nigerian_5,email,Zenodo,external,external_validation,fraud_email_detection,external,planned
+url_phiusiil,PhiUSIIL Phishing URL,url,UCI,external,external_validation,url_phishing_detection,external,planned
+threat_phishtank,PhishTank,threat_intelligence,PhishTank,dynamic,external_evidence,phishing_url_verification,dynamic,planned
+benchmark_meajor,MeAJOR,email,Zenodo,benchmark,benchmark_evaluation,email_phishing_detection,benchmark,planned
+benchmark_llm_generated,LLM-Generated Phishing Benchmark,email,Zenodo,benchmark,robustness_evaluation,AI_generated_phishing_detection,benchmark,planned

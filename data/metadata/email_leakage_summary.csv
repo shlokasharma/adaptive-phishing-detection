@@ -1,0 +1,10 @@
+source_dataset,rows,unique_texts,duplicate_texts
+CEAS_08,38963,38963,0
+Enron,29423,29423,0
+Ling,2859,2859,0
+Nazario,1552,1552,0
+Nazario_5,3050,3049,1
+Nigerian_5,6287,6287,0
+Nigerian_Fraud,3293,3293,0
+SpamAssasin,5802,5802,0
+TREC_07,53461,53443,18

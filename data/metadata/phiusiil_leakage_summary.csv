@@ -1,0 +1,7 @@
+metric,value
+total_rows,235356
+unique_urls,235356
+duplicate_urls,0
+unique_domains,220077
+conflicting_label_urls,0
+mixed_label_domains,54

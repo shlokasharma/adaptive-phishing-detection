@@ -1,0 +1,114 @@
+# ============================================================
+# Python
+# ============================================================
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+venv/
+env/
+ENV/
+
+# ============================================================
+# Environment / Secrets
+# ============================================================
+
+.env
+.env.*
+!.env.example
+
+# ============================================================
+# Jupyter
+# ============================================================
+
+.ipynb_checkpoints/
+
+# ============================================================
+# Dataset files
+# ============================================================
+
+# Raw datasets
+data/raw/*
+
+# Keep dataset directory structure
+!data/raw/
+!data/raw/email/
+!data/raw/url/
+!data/raw/threat_intelligence/
+!data/raw/benchmarks/
+
+# Intermediate/generated datasets
+data/interim/*
+data/processed/*
+
+# Keep metadata and documentation
+!data/metadata/
+!data/metadata/*.csv
+!data/metadata/*.json
+!data/metadata/*.yaml
+!data/metadata/*.yml
+
+!data/README.md
+
+# Generated split files
+data/splits/*
+
+# Generated annotations
+data/annotations/*
+
+# ============================================================
+# Machine Learning / Model Artifacts
+# ============================================================
+
+*.pkl
+*.pickle
+*.joblib
+*.h5
+*.hdf5
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.safetensors
+
+# ============================================================
+# Experiment Outputs
+# ============================================================
+
+experiments/*/outputs/
+experiments/*/results/
+experiments/*/models/
+
+# Logs
+*.log
+
+# ============================================================
+# OS files
+# ============================================================
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================================================
+# IDE
+# ============================================================
+
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+.idea/
+
+# ============================================================
+# Temporary files
+# ============================================================
+
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo

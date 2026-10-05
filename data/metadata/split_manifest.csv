@@ -1,0 +1,10 @@
+split_file,exists,rows,columns,label_0,label_1
+data\splits\url\uci_features\train.csv,True,4049,33,2089,1960
+data\splits\url\uci_features\validation.csv,True,868,33,447,421
+data\splits\url\uci_features\test.csv,True,868,33,448,420
+data\splits\url\phiusiil\train.csv,True,164033,8,94392,69641
+data\splits\url\phiusiil\validation.csv,True,34941,8,20233,14708
+data\splits\url\phiusiil\test.csv,True,36382,8,20225,16157
+data\splits\email\train.csv,True,101275,4,47653,53622
+data\splits\email\validation.csv,True,21707,4,10231,11476
+data\splits\email\test.csv,True,21708,4,10206,11502

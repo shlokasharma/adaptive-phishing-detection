@@ -1,0 +1,12 @@
+dataset,path,status,rows,columns,missing_values,duplicate_rows,modality
+CEAS_08.csv,C:\Users\HP\OneDrive\Desktop\adaptive-phishing-detection\data\raw\email\CEAS_08.csv,OK,39154.0,7.0,490.0,0.0,email
+Enron.csv,C:\Users\HP\OneDrive\Desktop\adaptive-phishing-detection\data\raw\email\Enron.csv,OK,29767.0,3.0,198.0,0.0,email
+Ling.csv,C:\Users\HP\OneDrive\Desktop\adaptive-phishing-detection\data\raw\email\Ling.csv,OK,2859.0,3.0,62.0,0.0,email
+Nazario.csv,C:\Users\HP\OneDrive\Desktop\adaptive-phishing-detection\data\raw\email\Nazario.csv,OK,1565.0,7.0,101.0,0.0,email
+Nazario_5.csv,C:\Users\HP\OneDrive\Desktop\adaptive-phishing-detection\data\raw\email\Nazario_5.csv,OK,3065.0,7.0,168.0,0.0,email
+Nigerian_5.csv,C:\Users\HP\OneDrive\Desktop\adaptive-phishing-detection\data\raw\email\Nigerian_5.csv,OK,6331.0,7.0,2288.0,0.0,email
+Nigerian_Fraud.csv,C:\Users\HP\OneDrive\Desktop\adaptive-phishing-detection\data\raw\email\Nigerian_Fraud.csv,OK,3332.0,7.0,2176.0,0.0,email
+SpamAssasin.csv,C:\Users\HP\OneDrive\Desktop\adaptive-phishing-detection\data\raw\email\SpamAssasin.csv,OK,5809.0,7.0,227.0,0.0,email
+TREC_05.csv,C:\Users\HP\OneDrive\Desktop\adaptive-phishing-detection\data\raw\email\TREC_05.csv,ERROR,,,,,email
+TREC_06.csv,C:\Users\HP\OneDrive\Desktop\adaptive-phishing-detection\data\raw\email\TREC_06.csv,ERROR,,,,,email
+TREC_07.csv,C:\Users\HP\OneDrive\Desktop\adaptive-phishing-detection\data\raw\email\TREC_07.csv,OK,53757.0,7.0,797.0,0.0,email
