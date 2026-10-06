@@ -11,6 +11,11 @@ from phishing_detection.orchestration.orchestrator import (
     OrchestratorAgent,
 )
 
+from phishing_detection.explainability.comparison import (
+    XAIComparisonResult,
+    compare_explanations,
+)
+
 __all__ = [
     "OrchestrationResult",
     "OrchestrationStep",
