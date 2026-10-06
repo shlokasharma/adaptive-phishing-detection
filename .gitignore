@@ -97,3 +97,6 @@ logs/
 *.temp
 *.bak
 *.swp
+
+# Python package build metadata
+*.egg-info/

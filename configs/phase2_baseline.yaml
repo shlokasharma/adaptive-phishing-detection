@@ -1,0 +1,249 @@
+# Phase 2 Baseline Experiment Configuration
+#
+# This configuration records the finalized settings used for
+# the traditional machine-learning baseline experiments.
+#
+# No test-set information is used for model selection.
+# Model selection is based on validation F1.
+
+experiment:
+  name: phase2_baseline_experiments
+  version: "1.0"
+  random_state: 42
+  test_set_used_for_model_selection: false
+
+label_convention:
+  legitimate: 0
+  phishing: 1
+
+
+data:
+
+  email:
+    train:
+      path: data/splits/email/train.csv
+
+    validation:
+      path: data/splits/email/validation.csv
+
+    test:
+      path: data/splits/email/test.csv
+
+    text_column: clean_text
+    label_column: label
+
+  url:
+    dataset: uci_features
+
+    train:
+      path: data/splits/url/uci_features/train.csv
+
+    validation:
+      path: data/splits/url/uci_features/validation.csv
+
+    test:
+      path: data/splits/url/uci_features/test.csv
+
+    label_column: label
+
+    excluded_columns:
+      - sample_id
+      - source_dataset
+      - label
+
+
+features:
+
+  email_tfidf:
+    max_features: 50000
+    ngram_range:
+      - 1
+      - 2
+    min_df: 2
+    max_df: 0.95
+    sublinear_tf: true
+    strip_accents: unicode
+
+  url_features:
+    preprocessing:
+      imputation: median
+      scaling: standard
+    fit_preprocessing_on_train_only: true
+
+
+models:
+
+  email:
+
+    logistic_regression:
+      class: LogisticRegression
+      C: 4.0
+      max_iter: 1000
+      solver: liblinear
+
+    linear_svm:
+      class: CalibratedClassifierCV
+      base_estimator: LinearSVC
+      C: 2.0
+      calibration_method: sigmoid
+      calibration_cv: 3
+
+    random_forest:
+      class: RandomForestClassifier
+      n_estimators: 300
+      min_samples_leaf: 1
+      max_features: sqrt
+      random_state: 42
+      n_jobs: -1
+
+
+  url:
+
+    logistic_regression:
+      class: LogisticRegression
+      C: 0.5
+      max_iter: 1000
+      solver: liblinear
+
+    random_forest:
+      class: RandomForestClassifier
+      n_estimators: 200
+      min_samples_leaf: 1
+      max_features: sqrt
+      random_state: 42
+      n_jobs: -1
+
+    gradient_boosting:
+      class: GradientBoostingClassifier
+      n_estimators: 300
+      learning_rate: 0.1
+      max_depth: 3
+      min_samples_split: 2
+      min_samples_leaf: 1
+      random_state: 42
+
+
+model_selection:
+
+  selection_metric: f1
+
+  validation_only: true
+
+  selected_models:
+
+    email:
+      model: email_linear_svm
+      parameters:
+        C: 2.0
+
+    url:
+      model: url_random_forest
+      parameters:
+        n_estimators: 200
+        min_samples_leaf: 1
+        max_features: sqrt
+
+
+evaluation:
+
+  metrics:
+    - accuracy
+    - precision
+    - recall
+    - f1
+    - roc_auc
+    - pr_auc
+
+  confusion_matrix: true
+
+  error_analysis:
+    enabled: true
+    false_positives: true
+    false_negatives: true
+
+  confidence_analysis:
+    enabled: true
+
+  computational_cost:
+    enabled: true
+    measure:
+      - feature_transformation_time
+      - prediction_time
+      - probability_time
+      - total_inference_time
+      - time_per_sample
+      - throughput
+
+
+experiments:
+
+  tuning:
+    output:
+      path: experiments/baselines/outputs/hyperparameter_tuning_results.json
+
+  validation:
+    output:
+      path: experiments/baselines/outputs/validation_metrics.json
+
+  test:
+    output:
+      path: experiments/baselines/outputs/test_metrics.json
+
+  classification_reports:
+    output_directory:
+      path: experiments/baselines/outputs
+
+  error_analysis:
+    output:
+      path: experiments/baselines/outputs/error_analysis_summary.csv
+
+  confidence_analysis:
+    output:
+      path: experiments/baselines/outputs/model_confidence_analysis.json
+
+  computational_cost:
+    output:
+      path: experiments/baselines/outputs/computational_cost_analysis.json
+
+  model_comparison:
+    csv:
+      path: experiments/baselines/outputs/baseline_model_comparison.csv
+
+    json:
+      path: experiments/baselines/outputs/baseline_model_comparison.json
+
+    markdown:
+      path: experiments/baselines/outputs/baseline_model_comparison.md
+
+
+artifacts:
+
+  model_directory:
+    path: experiments/baselines/models
+
+  email_models:
+    - email_logistic_regression.pkl
+    - email_linear_svm.pkl
+    - email_random_forest.pkl
+
+  url_models:
+    - url_logistic_regression.pkl
+    - url_random_forest.pkl
+    - url_gradient_boosting.pkl
+
+
+reproducibility:
+
+  random_state: 42
+
+  train_validation_test_protocol:
+    training_split: train
+    model_selection_split: validation
+    final_evaluation_split: test
+
+  leakage_prevention:
+    feature_extractors_fit_on_training_data_only: true
+    test_set_used_during_tuning: false
+    test_set_used_during_model_selection: false
+
+  phase1_data_boundary_frozen: true
