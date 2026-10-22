@@ -74,11 +74,23 @@ data/annotations/
 *.safetensors
 *.onnx
 
+# Allow required deployment models (< 20MB)
+!experiments/baselines/models/email_linear_svm.pkl
+!experiments/baselines/models/email_linear_svm_tfidf_extractor.pkl
+!experiments/baselines/models/url_random_forest.pkl
+!experiments/baselines/models/url_random_forest_feature_extractor.pkl
+
+# Explicitly ignore oversized models (>100MB)
+experiments/baselines/models/email_random_forest.pkl
+experiments/baselines/outputs/email_random_forest.pkl
+
 # ============================================================
 # Experiment Outputs
 # ============================================================
 
-experiments/**/outputs/
+experiments/**/outputs/*
+!experiments/baselines/outputs/final_test_metrics.json
+
 experiments/**/results/
 experiments/**/artifacts/
 

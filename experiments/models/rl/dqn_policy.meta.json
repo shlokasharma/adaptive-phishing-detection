@@ -1,0 +1,32 @@
+{
+  "algorithm": "dqn",
+  "episodes": 150,
+  "training_time_seconds": 1.92,
+  "mean_episode_reward": 7.45,
+  "final_20_reward": 9.39,
+  "action_counts": {
+    "RUN_EMAIL_AGENT": 138,
+    "RUN_URL_AGENT": 110,
+    "RUN_SENDER_AGENT": 7,
+    "STOP_AND_CLASSIFY": 18
+  },
+  "outcomes": {
+    "TP": 85,
+    "TN": 59,
+    "FP": 0,
+    "FN": 6,
+    "premature": 12
+  },
+  "output_path": "C:\\Users\\HP\\OneDrive\\Desktop\\adaptive-phishing-detection\\experiments\\models\\rl\\dqn_policy.json",
+  "metadata": {
+    "policy_type": "deep_q_network",
+    "version": "1.0.0",
+    "input_dim": 14,
+    "hidden_dim": 32,
+    "output_dim": 4,
+    "learning_rate": 0.01,
+    "gamma": 0.95,
+    "epsilon": 0.05,
+    "steps": 273
+  }
+}

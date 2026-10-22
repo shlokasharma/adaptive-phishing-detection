@@ -1,0 +1,29 @@
+{
+  "algorithm": "tabular",
+  "episodes": 100,
+  "training_time_seconds": 1.31,
+  "mean_episode_reward": 5.6,
+  "final_20_reward": 9.71,
+  "action_counts": {
+    "RUN_EMAIL_AGENT": 89,
+    "RUN_URL_AGENT": 16,
+    "RUN_SENDER_AGENT": 4,
+    "STOP_AND_CLASSIFY": 44
+  },
+  "outcomes": {
+    "TP": 51,
+    "TN": 39,
+    "FP": 0,
+    "FN": 10,
+    "premature": 11
+  },
+  "output_path": "C:\\Users\\HP\\OneDrive\\Desktop\\adaptive-phishing-detection\\experiments\\models\\rl\\tabular_policy.json",
+  "metadata": {
+    "policy_type": "tabular_q",
+    "version": "1.0.0",
+    "learning_rate": 0.01,
+    "gamma": 0.95,
+    "epsilon": 0.05,
+    "table_entries": 14
+  }
+}

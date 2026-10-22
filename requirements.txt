@@ -10,3 +10,8 @@ lxml
 requests
 tqdm
 pyarrow
+shap
+lime
+joblib
+streamlit>=1.35.0
+plotly>=5.20.0

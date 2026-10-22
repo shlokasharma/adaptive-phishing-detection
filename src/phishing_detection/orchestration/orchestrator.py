@@ -1,15 +1,17 @@
 """
-Deterministic adaptive orchestrator for Phase 3.
+Adaptive orchestrator for Phase 5 and Phase 6.
 
 The orchestrator coordinates specialized phishing detection
 agents and dynamically determines whether additional evidence
 should be collected.
 
-The current policy is deterministic and rule-based.
+Phase 5: Deterministic adaptive evidence policy evaluates combined evidence.
+Phase 6: Reinforcement Learning (RL) policy dynamically selects analysis actions
+         and balances detection accuracy against computational cost.
 
-This interface is intentionally designed so that the policy
-can later be replaced by a reinforcement-learning policy
-without changing the underlying agents.
+The deterministic Phase 5 policy remains the default. The RL policy
+can be selected via dependency injection without breaking any existing
+interfaces or contracts.
 """
 
 from __future__ import annotations
@@ -28,6 +30,13 @@ from phishing_detection.agents.sender_agent import (
     SenderAnalysisAgent,
 )
 from phishing_detection.agents.url_agent import URLAnalysisAgent
+from phishing_detection.orchestration.adaptive_policy import (
+    AdaptiveEvidencePolicy,
+    EvidencePolicyAssessment,
+)
+from phishing_detection.orchestration.rl_actions import (
+    OrchestrationAction,
+)
 
 
 @dataclass
@@ -229,6 +238,9 @@ class OrchestratorAgent:
     """
     Coordinate specialized phishing detection agents.
 
+    Phase 5 default: Deterministic ``AdaptiveEvidencePolicy`` evaluates combined evidence.
+    Phase 6 option: Reinforcement learning policy (``RLEvidencePolicy``) dynamically selects actions.
+
     Parameters
     ----------
     email_agent:
@@ -242,10 +254,17 @@ class OrchestratorAgent:
 
     confidence_threshold:
         Confidence above which additional evidence is normally
-        considered unnecessary.
+        considered unnecessary. Used to construct the default
+        policy when no explicit policy is provided.
 
     max_agents:
         Maximum number of agents that may be executed.
+
+    policy:
+        Policy instance. Can be ``AdaptiveEvidencePolicy`` (Phase 5)
+        or ``RLEvidencePolicy`` (Phase 6). When ``None``, a default
+        ``AdaptiveEvidencePolicy`` is constructed using
+        ``confidence_threshold`` and ``min_evidence_count=0``.
     """
 
     def __init__(
@@ -255,6 +274,7 @@ class OrchestratorAgent:
         sender_agent: SenderAnalysisAgent,
         confidence_threshold: float = 0.90,
         max_agents: int = 3,
+        policy: Any | None = None,
     ) -> None:
         if not 0.0 <= confidence_threshold <= 1.0:
             raise ValueError(
@@ -273,6 +293,16 @@ class OrchestratorAgent:
             confidence_threshold
         )
         self.max_agents = max_agents
+
+        # Phase 5 default or Phase 6 RL policy
+        self.policy: Any = (
+            policy
+            if policy is not None
+            else AdaptiveEvidencePolicy(
+                confidence_threshold=confidence_threshold,
+                min_evidence_count=0,
+            )
+        )
 
     def _record_step(
         self,
@@ -306,20 +336,50 @@ class OrchestratorAgent:
             )
         )
 
-    def _should_continue(
+    def _assess_and_record(
         self,
+        trace: list[OrchestrationStep],
+        agent_name: str,
+        results: list[AgentResult],
         result: AgentResult,
-    ) -> bool:
+    ) -> EvidencePolicyAssessment:
         """
-        Determine whether additional evidence should be collected.
+        Ask the policy to assess all collected results so far
+        and record the resulting continue/stop decision.
         """
 
-        assessment = assess_agent_result(result)
+        assessment = self.policy.assess(results)
 
-        return (
-            assessment.confidence
-            < self.confidence_threshold
+        if assessment.sufficient:
+            action = "stop"
+            reason = (
+                f"Policy: {assessment.reason} "
+                f"(combined_probability="
+                f"{assessment.phishing_probability:.4f}, "
+                f"combined_confidence="
+                f"{assessment.confidence:.4f}, "
+                f"evidence_count={assessment.evidence_count})"
+            )
+        else:
+            action = "continue"
+            reason = (
+                f"Policy: {assessment.reason} "
+                f"(combined_probability="
+                f"{assessment.phishing_probability:.4f}, "
+                f"combined_confidence="
+                f"{assessment.confidence:.4f}, "
+                f"evidence_count={assessment.evidence_count})"
+            )
+
+        self._record_step(
+            trace=trace,
+            agent_name=agent_name,
+            action=action,
+            reason=reason,
+            result=result,
         )
+
+        return assessment
 
     @staticmethod
     def _aggregate_results(
@@ -328,10 +388,7 @@ class OrchestratorAgent:
         """
         Aggregate agent probabilities.
 
-        The current deterministic policy uses the arithmetic mean.
-
-        This is intentionally simple and transparent. A future
-        learned evidence-fusion policy can replace this function.
+        The current policy uses the arithmetic mean.
         """
 
         if not results:
@@ -358,6 +415,7 @@ class OrchestratorAgent:
         results: list[AgentResult],
         trace: list[OrchestrationStep],
         start_time: float,
+        final_assessment: EvidencePolicyAssessment | None = None,
     ) -> OrchestrationResult:
         """Create the final orchestration result."""
 
@@ -393,6 +451,36 @@ class OrchestratorAgent:
             time.perf_counter() - start_time
         ) * 1000.0
 
+        policy_name = getattr(
+            self.policy, "POLICY_NAME", "adaptive_evidence_policy"
+        )
+        conf_thresh = getattr(
+            self.policy, "confidence_threshold", self.confidence_threshold
+        )
+        min_ev = getattr(
+            self.policy, "min_evidence_count", 0
+        )
+
+        metadata: dict[str, Any] = {
+            "policy": policy_name,
+            "confidence_threshold": conf_thresh,
+            "min_evidence_count": min_ev,
+            "max_agents": self.max_agents,
+            "agents_executed": len(results),
+            "evidence_count": len(combined_evidence),
+            "total_execution_time_ms": total_time_ms,
+        }
+
+        if hasattr(self.policy, "get_metadata"):
+            meta = self.policy.get_metadata()
+            metadata["policy_metadata"] = meta
+            metadata["rl_policy_metadata"] = meta
+
+        if final_assessment is not None:
+            metadata["policy_assessment"] = (
+                final_assessment.to_dict()
+            )
+
         return OrchestrationResult(
             label=label,
             label_name=label_name,
@@ -402,16 +490,7 @@ class OrchestratorAgent:
             agent_results=results,
             decision_trace=trace,
             evidence=combined_evidence,
-            metadata={
-                "policy": "deterministic_confidence_threshold",
-                "confidence_threshold": (
-                    self.confidence_threshold
-                ),
-                "agents_executed": len(results),
-                "total_execution_time_ms": (
-                    total_time_ms
-                ),
-            },
+            metadata=metadata,
         )
 
     def analyze(
@@ -421,222 +500,205 @@ class OrchestratorAgent:
         """
         Execute adaptive multi-agent analysis.
 
-        The deterministic policy starts with the Email Agent,
-        then gathers additional evidence when confidence is
-        below the configured threshold.
+        If ``policy`` implements ``select_action`` (e.g., ``RLEvidencePolicy``),
+        dynamic reinforcement-learning action selection is performed.
+        Otherwise, the deterministic Phase 5 adaptive evidence flow is executed.
         """
-
         start_time = time.perf_counter()
 
+        if hasattr(self.policy, "select_action"):
+            return self._analyze_rl(context, start_time)
+
+        return self._analyze_deterministic(context, start_time)
+
+    def _analyze_deterministic(
+        self,
+        context: AgentContext,
+        start_time: float,
+    ) -> OrchestrationResult:
+        """Phase 5 deterministic adaptive evidence flow."""
         results: list[AgentResult] = []
-
         trace: list[OrchestrationStep] = []
+        final_assessment: EvidencePolicyAssessment | None = None
 
-        # -----------------------------------------------------
-        # STEP 1: EMAIL ANALYSIS
-        # -----------------------------------------------------
+        agents = [
+            self.email_agent,
+            self.url_agent,
+            self.sender_agent,
+        ]
 
-        if self.email_agent.can_analyze(context):
-
-            self._record_step(
-                trace=trace,
-                agent_name=(
-                    self.email_agent.get_agent_name()
-                ),
-                action="execute",
-                reason=(
-                    "Email content is available and "
-                    "email analysis is the primary "
-                    "initial evidence source."
-                ),
-            )
-
-            email_result = self.email_agent.analyze(
-                context
-            )
-
-            results.append(email_result)
-
-            if not self._should_continue(
-                email_result
-            ):
+        for agent in agents:
+            if len(results) >= self.max_agents:
                 self._record_step(
                     trace=trace,
-                    agent_name=(
-                        self.email_agent.get_agent_name()
-                    ),
-                    action="stop",
+                    agent_name=agent.get_agent_name(),
+                    action="skip",
                     reason=(
-                        "Email analysis confidence is above "
-                        "the configured threshold."
+                        "Maximum agent budget has been "
+                        f"reached ({self.max_agents})."
                     ),
-                    result=email_result,
                 )
+                continue
 
-                return self._create_final_result(
-                    results,
-                    trace,
-                    start_time,
+            if not agent.can_analyze(context):
+                self._record_step(
+                    trace=trace,
+                    agent_name=agent.get_agent_name(),
+                    action="skip",
+                    reason=(
+                        f"{agent.get_agent_name()} cannot "
+                        "analyze this context (required "
+                        "inputs are unavailable)."
+                    ),
                 )
+                continue
 
             self._record_step(
                 trace=trace,
-                agent_name=(
-                    self.email_agent.get_agent_name()
-                ),
-                action="continue",
+                agent_name=agent.get_agent_name(),
+                action="execute",
                 reason=(
-                    "Email analysis confidence is below "
-                    "the configured threshold; additional "
+                    "Agent is eligible and additional "
                     "evidence is required."
                 ),
-                result=email_result,
             )
 
-        else:
-            self._record_step(
-                trace=trace,
-                agent_name=(
-                    self.email_agent.get_agent_name()
-                ),
-                action="skip",
-                reason=(
-                    "Email content is unavailable."
-                ),
-            )
-
-        # -----------------------------------------------------
-        # STEP 2: URL ANALYSIS
-        # -----------------------------------------------------
-
-        if (
-            len(results) < self.max_agents
-            and self.url_agent.can_analyze(context)
-        ):
-
-            self._record_step(
-                trace=trace,
-                agent_name=(
-                    self.url_agent.get_agent_name()
-                ),
-                action="execute",
-                reason=(
-                    "Additional evidence is required and "
-                    "URL information is available."
-                ),
-            )
-
-            url_result = self.url_agent.analyze(
-                context
-            )
-
-            results.append(url_result)
-
-            if not self._should_continue(
-                url_result
-            ):
+            try:
+                agent_result = agent.analyze(context)
+            except Exception as exc:  # noqa: BLE001
                 self._record_step(
                     trace=trace,
-                    agent_name=(
-                        self.url_agent.get_agent_name()
-                    ),
-                    action="stop",
+                    agent_name=agent.get_agent_name(),
+                    action="error",
                     reason=(
-                        "URL analysis confidence is above "
-                        "the configured threshold."
+                        f"Agent raised an exception: {exc}. "
+                        "Result discarded; continuing to "
+                        "next eligible agent."
                     ),
-                    result=url_result,
                 )
+                continue
 
-                return self._create_final_result(
-                    results,
-                    trace,
-                    start_time,
-                )
+            results.append(agent_result)
 
-            self._record_step(
+            assessment = self._assess_and_record(
                 trace=trace,
-                agent_name=(
-                    self.url_agent.get_agent_name()
-                ),
-                action="continue",
-                reason=(
-                    "URL analysis remains uncertain; "
-                    "sender evidence may provide additional "
-                    "information."
-                ),
-                result=url_result,
+                agent_name=agent.get_agent_name(),
+                results=results,
+                result=agent_result,
             )
+            final_assessment = assessment
 
-        else:
-            self._record_step(
-                trace=trace,
-                agent_name=(
-                    self.url_agent.get_agent_name()
-                ),
-                action="skip",
-                reason=(
-                    "URL analysis is unavailable or the "
-                    "maximum agent budget has been reached."
-                ),
-            )
+            if assessment.sufficient:
+                break
 
-        # -----------------------------------------------------
-        # STEP 3: SENDER ANALYSIS
-        # -----------------------------------------------------
-
-        if (
-            len(results) < self.max_agents
-            and self.sender_agent.can_analyze(context)
-        ):
-
-            self._record_step(
-                trace=trace,
-                agent_name=(
-                    self.sender_agent.get_agent_name()
-                ),
-                action="execute",
-                reason=(
-                    "Additional evidence is required and "
-                    "sender/header information is available."
-                ),
-            )
-
-            sender_result = self.sender_agent.analyze(
-                context
-            )
-
-            results.append(sender_result)
-
-            self._record_step(
-                trace=trace,
-                agent_name=(
-                    self.sender_agent.get_agent_name()
-                ),
-                action="stop",
-                reason=(
-                    "Sender analysis completed; the "
-                    "maximum planned evidence-gathering "
-                    "depth has been reached."
-                ),
-                result=sender_result,
-            )
-
-        else:
-            self._record_step(
-                trace=trace,
-                agent_name=(
-                    self.sender_agent.get_agent_name()
-                ),
-                action="skip",
-                reason=(
-                    "Sender analysis is unavailable or the "
-                    "maximum agent budget has been reached."
-                ),
-            )
+        if final_assessment is None:
+            final_assessment = self.policy.assess(results)
 
         return self._create_final_result(
             results,
             trace,
             start_time,
+            final_assessment,
+        )
+
+    def _analyze_rl(
+        self,
+        context: AgentContext,
+        start_time: float,
+    ) -> OrchestrationResult:
+        """Phase 6 Reinforcement Learning dynamic agent selection flow."""
+        results: list[AgentResult] = []
+        trace: list[OrchestrationStep] = []
+        attempted_agents: list[str] = []
+
+        agent_lookup = {
+            "email_analysis_agent": self.email_agent,
+            "url_analysis_agent": self.url_agent,
+            "sender_analysis_agent": self.sender_agent,
+        }
+
+        # Available agents for this context
+        available_agents = [
+            agent.get_agent_name()
+            for agent in [self.email_agent, self.url_agent, self.sender_agent]
+            if agent.can_analyze(context)
+        ]
+
+        while len(results) < self.max_agents:
+            remaining_budget = self.max_agents - len(results)
+
+            action, info = self.policy.select_action(
+                results=results,
+                available_agents=available_agents,
+                remaining_budget=remaining_budget,
+                max_agents=self.max_agents,
+                executed_agents=attempted_agents,
+            )
+
+            if action == OrchestrationAction.STOP_AND_CLASSIFY:
+                last_result = results[-1] if results else None
+                reason_str = f"RL policy: {info.get('reason', 'STOP_AND_CLASSIFY')}"
+                if info.get("q_values"):
+                    reason_str += f" (Q={info['q_values']})"
+                self._record_step(
+                    trace=trace,
+                    agent_name="orchestrator",
+                    action="stop",
+                    reason=reason_str,
+                    result=last_result,
+                )
+                break
+
+            target_agent_name = action.target_agent_name
+            target_agent = agent_lookup.get(target_agent_name)
+
+            if target_agent is None or not target_agent.can_analyze(context):
+                self._record_step(
+                    trace=trace,
+                    agent_name=target_agent_name or "unknown",
+                    action="skip",
+                    reason=f"Agent {target_agent_name} is ineligible or unavailable.",
+                )
+                break
+
+            attempted_agents.append(target_agent_name)
+
+            # Execute agent
+            self._record_step(
+                trace=trace,
+                agent_name=target_agent.get_agent_name(),
+                action="execute",
+                reason=f"RL policy selected {action.action_name}.",
+            )
+
+            try:
+                agent_result = target_agent.analyze(context)
+            except Exception as exc:  # noqa: BLE001
+                self._record_step(
+                    trace=trace,
+                    agent_name=target_agent.get_agent_name(),
+                    action="error",
+                    reason=(
+                        f"Agent raised an exception: {exc}. "
+                        "Result discarded; continuing."
+                    ),
+                )
+                continue
+
+            results.append(agent_result)
+
+            # Record step assessment
+            self._assess_and_record(
+                trace=trace,
+                agent_name=target_agent.get_agent_name(),
+                results=results,
+                result=agent_result,
+            )
+
+        final_assessment = self.policy.assess(results)
+        return self._create_final_result(
+            results=results,
+            trace=trace,
+            start_time=start_time,
+            final_assessment=final_assessment,
         )
