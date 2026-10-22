@@ -1026,8 +1026,25 @@ if selected_view == "🔍 Live Detection Workspace":
             # 6. Model Explainability & Feature Attribution
             st.markdown("#### 🔍 Explainable AI & Feature Attribution (SHAP + LIME)")
             explanations = result.get("explanations", {})
-            aggregated_xai = explanations.get("aggregated_explanation") or {}
-            top_features = aggregated_xai.get("feature_importance", {}) or {}
+            aggregated_xai = (
+                explanations.get("aggregated_explanation")
+                or result.get("aggregated_explanation")
+                or {}
+            )
+            factors = aggregated_xai.get("factors", [])
+
+            top_features = {}
+            if factors:
+                for f in factors:
+                    name = f.get("feature", "")
+                    contrib = f.get("contribution")
+                    if contrib is None:
+                        contrib = f.get("importance", 0.0)
+                        if f.get("direction") == "supports_legitimate":
+                            contrib = -contrib
+                    top_features[name] = float(contrib)
+            elif "feature_importance" in aggregated_xai:
+                top_features = aggregated_xai.get("feature_importance", {}) or {}
 
             if top_features:
                 feature_items = list(top_features.items())[:12]
@@ -1038,7 +1055,8 @@ if selected_view == "🔍 Live Detection Workspace":
                     x=feat_vals,
                     y=feat_names,
                     orientation="h",
-                    title="Top Contributing Feature Attributions (Aggregated XAI)",
+                    title="Top Contributing Feature Attributions (Aggregated XAI: SHAP + LIME)",
+                    labels={"x": "Contribution (Negative: Legitimate | Positive: Phishing)", "y": "Feature / Token"},
                     color=feat_vals,
                     color_continuous_scale=["#36D399", "#60A5FA", "#FF5D73"],
                 )
@@ -1046,7 +1064,7 @@ if selected_view == "🔍 Live Detection Workspace":
                     paper_bgcolor="#111D33",
                     plot_bgcolor="#111D33",
                     font_color="#FFFFFF",
-                    height=300,
+                    height=360,
                     margin=dict(l=20, r=20, t=40, b=20),
                     yaxis=dict(autorange="reversed"),
                 )
