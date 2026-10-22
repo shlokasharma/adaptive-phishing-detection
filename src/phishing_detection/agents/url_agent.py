@@ -218,8 +218,17 @@ class URLAnalysisAgent(BaseAgent):
             url_features
         )
 
+        if hasattr(self._preprocessor, 'feature_names'):
+            import pandas as pd
+            feature_input = pd.DataFrame(
+                feature_matrix,
+                columns=list(self._preprocessor.feature_names),
+            )
+        else:
+            feature_input = feature_matrix
+
         transformed_features = self._preprocessor.transform(
-            feature_matrix
+            feature_input
         )
 
         prediction = int(

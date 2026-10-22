@@ -705,10 +705,18 @@ if selected_view == "🔍 Live Detection Workspace":
             st.write("")
             analyze_button = st.button("🚀 Run Adaptive Phishing Analysis", type="primary", use_container_width=True)
 
+    # Detect if user changed policy dropdown while viewing results
+    policy_changed = False
+    if "last_policy_code" in st.session_state and st.session_state["last_policy_code"] != active_policy_code:
+        policy_changed = True
+    st.session_state["last_policy_code"] = active_policy_code
+
+    should_execute = analyze_button or (policy_changed and "last_analysis_result" in st.session_state)
+
     # Execution & Results
-    if analyze_button or "last_analysis_result" in st.session_state:
-        if analyze_button:
-            with st.spinner("Executing adaptive agent orchestration..."):
+    if should_execute or "last_analysis_result" in st.session_state:
+        if should_execute:
+            with st.spinner(f"Executing orchestration using {policy_selection}..."):
                 try:
                     detection_service = get_detection_service(policy_type=active_policy_code)
                     result = detection_service.analyze(
@@ -720,6 +728,7 @@ if selected_view == "🔍 Live Detection Workspace":
                         policy_type=active_policy_code,
                     )
                     st.session_state["last_analysis_result"] = result
+                    st.session_state["last_used_policy_name"] = policy_selection
                 except Exception as exc:
                     st.error(f"Analysis failed: {exc}")
                     logger.exception("Analysis execution error")
@@ -729,7 +738,16 @@ if selected_view == "🔍 Live Detection Workspace":
 
         if result:
             st.markdown("---")
-            st.markdown("### 🎯 Live Detection & Orchestration Results")
+            used_pol = st.session_state.get("last_used_policy_name", policy_selection)
+            st.markdown(
+                f"""
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                    <div style="font-size: 22px; font-weight: 700; color: #FFFFFF;">🎯 Live Detection & Orchestration Results</div>
+                    <div><span class="badge-pill badge-info">Active Engine: {used_pol}</span></div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
             # Extract Primary Metrics
             label_name = result.get("label_name", "unknown").upper()
