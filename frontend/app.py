@@ -211,6 +211,7 @@ div[data-baseweb="textarea"] > div,
     caret-color: #4F8CFF !important;
 }
 
+
 /* Focused states */
 textarea:focus,
 input[type="text"]:focus,
@@ -705,18 +706,10 @@ if selected_view == "🔍 Live Detection Workspace":
             st.write("")
             analyze_button = st.button("🚀 Run Adaptive Phishing Analysis", type="primary", use_container_width=True)
 
-    # Detect if user changed policy dropdown while viewing results
-    policy_changed = False
-    if "last_policy_code" in st.session_state and st.session_state["last_policy_code"] != active_policy_code:
-        policy_changed = True
-    st.session_state["last_policy_code"] = active_policy_code
-
-    should_execute = analyze_button or (policy_changed and "last_analysis_result" in st.session_state)
-
     # Execution & Results
-    if should_execute or "last_analysis_result" in st.session_state:
-        if should_execute:
-            with st.spinner(f"Executing orchestration using {policy_selection}..."):
+    if analyze_button or "last_analysis_result" in st.session_state:
+        if analyze_button:
+            with st.spinner("Executing adaptive agent orchestration..."):
                 try:
                     detection_service = get_detection_service(policy_type=active_policy_code)
                     result = detection_service.analyze(
@@ -728,7 +721,6 @@ if selected_view == "🔍 Live Detection Workspace":
                         policy_type=active_policy_code,
                     )
                     st.session_state["last_analysis_result"] = result
-                    st.session_state["last_used_policy_name"] = policy_selection
                 except Exception as exc:
                     st.error(f"Analysis failed: {exc}")
                     logger.exception("Analysis execution error")
@@ -738,16 +730,7 @@ if selected_view == "🔍 Live Detection Workspace":
 
         if result:
             st.markdown("---")
-            used_pol = st.session_state.get("last_used_policy_name", policy_selection)
-            st.markdown(
-                f"""
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-                    <div style="font-size: 22px; font-weight: 700; color: #FFFFFF;">🎯 Live Detection & Orchestration Results</div>
-                    <div><span class="badge-pill badge-info">Active Engine: {used_pol}</span></div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            st.markdown("### 🎯 Live Detection & Orchestration Results")
 
             # Extract Primary Metrics
             label_name = result.get("label_name", "unknown").upper()
@@ -1025,106 +1008,34 @@ if selected_view == "🔍 Live Detection Workspace":
 
             # 6. Model Explainability & Feature Attribution
             st.markdown("#### 🔍 Explainable AI & Feature Attribution (SHAP + LIME)")
-            try:
-                explanations = result.get("explanations", {})
-                aggregated_xai = (
-                    explanations.get("aggregated_explanation")
-                    or result.get("aggregated_explanation")
-                    or {}
+            explanations = result.get("explanations", {})
+            aggregated_xai = explanations.get("aggregated_explanation") or {}
+            top_features = aggregated_xai.get("feature_importance", {}) or {}
+
+            if top_features:
+                feature_items = list(top_features.items())[:12]
+                feat_names = [f[0] for f in feature_items]
+                feat_vals = [f[1] for f in feature_items]
+
+                fig_xai = px.bar(
+                    x=feat_vals,
+                    y=feat_names,
+                    orientation="h",
+                    title="Top Contributing Feature Attributions (Aggregated XAI)",
+                    color=feat_vals,
+                    color_continuous_scale=["#36D399", "#60A5FA", "#FF5D73"],
                 )
-                factors = aggregated_xai.get("factors", [])
-
-                top_features = {}
-                if factors:
-                    for f in factors:
-                        name = str(f.get("feature", "")).strip()
-                        contrib = f.get("contribution")
-                        if contrib is None:
-                            contrib = f.get("importance", 0.0)
-                            if f.get("direction") == "supports_legitimate":
-                                contrib = -contrib
-                        if name:
-                            top_features[name] = float(contrib)
-                elif "feature_importance" in aggregated_xai:
-                    top_features = aggregated_xai.get("feature_importance", {}) or {}
-
-                # Fallback 1: Per-agent explanation factors
-                if not top_features and "explanations" in explanations:
-                    sub_exp = explanations.get("explanations", {})
-                    if isinstance(sub_exp, dict):
-                        for agent_key, methods in sub_exp.items():
-                            if isinstance(methods, dict):
-                                for method_name, exp_data in methods.items():
-                                    if isinstance(exp_data, dict) and exp_data.get("factors"):
-                                        for f in exp_data["factors"]:
-                                            feat_name = str(f.get("feature", "")).strip()
-                                            if feat_name and feat_name not in top_features:
-                                                contrib = f.get("contribution", f.get("importance", 0.0))
-                                                if f.get("direction") == "supports_legitimate":
-                                                    contrib = -abs(contrib)
-                                                top_features[feat_name] = float(contrib)
-
-                # Fallback 2: Lexical indicator tokens extracted from context
-                if not top_features:
-                    meta = result.get("metadata", {}) if isinstance(result, dict) else {}
-                    text_corpus = " ".join([
-                        str(meta.get("subject", "")),
-                        str(meta.get("body", "")),
-                        str(meta.get("sender", "")),
-                        str(meta.get("url", "")),
-                        str(meta.get("input_text", "")),
-                        str(locals().get("input_subject", "")),
-                        str(locals().get("input_body", "")),
-                        str(locals().get("input_sender", "")),
-                        str(locals().get("input_url", "")),
-                    ]).lower()
-                    phish_indicators = {
-                        "verify": 0.42, "account": 0.39, "urgent": 0.36, "suspended": 0.34,
-                        "password": 0.31, "login": 0.29, "security": 0.28, "alert": 0.25,
-                        "banking": 0.24, "immediate": 0.22, "click": 0.21, "action required": 0.20,
-                        "update": 0.18, "confirm": 0.17, "expire": 0.15, "unauthorized": 0.14
-                    }
-                    legit_indicators = {
-                        "meeting": -0.32, "quarterly": -0.28, "team": -0.25, "review": -0.22,
-                        "agenda": -0.21, "project": -0.19, "calendar": -0.18, "status": -0.15,
-                        "schedule": -0.14, "thanks": -0.12, "invoice": -0.11
-                    }
-                    for word, weight in phish_indicators.items():
-                        if word in text_corpus:
-                            top_features[word] = weight
-                    for word, weight in legit_indicators.items():
-                        if word in text_corpus:
-                            top_features[word] = weight
-
-                if top_features:
-                    # Sort by absolute contribution magnitude
-                    feature_items = sorted(top_features.items(), key=lambda x: abs(x[1]), reverse=True)[:12]
-                    feat_names = [f[0] for f in feature_items]
-                    feat_vals = [f[1] for f in feature_items]
-
-                    fig_xai = px.bar(
-                        x=feat_vals,
-                        y=feat_names,
-                        orientation="h",
-                        title="Top Contributing Feature Attributions (Aggregated XAI: SHAP + LIME)",
-                        labels={"x": "Attribution Impact (Negative: Legitimate | Positive: Phishing)", "y": "Feature / Token"},
-                        color=feat_vals,
-                        color_continuous_scale=["#36D399", "#60A5FA", "#FF5D73"],
-                    )
-                    fig_xai.update_layout(
-                        paper_bgcolor="#111D33",
-                        plot_bgcolor="#111D33",
-                        font_color="#FFFFFF",
-                        height=380,
-                        margin=dict(l=20, r=20, t=40, b=20),
-                        yaxis=dict(autorange="reversed"),
-                    )
-                    st.plotly_chart(fig_xai, use_container_width=True)
-                else:
-                    st.info("Attribution signals extracted directly from textual tokens and engineered lexical parameters.")
-            except Exception as xai_err:
-                logger.warning("Rendering XAI chart encountered error: %s", xai_err)
-                st.info("Explainability attribution signals are processing or available in raw JSON metadata below.")
+                fig_xai.update_layout(
+                    paper_bgcolor="#111D33",
+                    plot_bgcolor="#111D33",
+                    font_color="#FFFFFF",
+                    height=300,
+                    margin=dict(l=20, r=20, t=40, b=20),
+                    yaxis=dict(autorange="reversed"),
+                )
+                st.plotly_chart(fig_xai, use_container_width=True)
+            else:
+                st.info("Attribution signals extracted directly from textual tokens and engineered lexical parameters.")
 
             # Raw Result Expander
             with st.expander("🛠️ Inspect Complete Serialized Execution Metadata (JSON)"):
@@ -1276,6 +1187,42 @@ elif selected_view == "📊 Empirical Evaluation & Benchmarks":
             margin=dict(l=20, r=20, t=50, b=20),
         )
         st.plotly_chart(fig_comp, use_container_width=True)
+
+        # Comparative Policy Evaluation Table
+        st.markdown(
+            "<div style='font-size: 15px; font-weight: 600; color: #FFFFFF; margin-top: 18px; margin-bottom: 8px;'>📋 Empirical Policy Benchmark Summary Table</div>",
+            unsafe_allow_html=True,
+        )
+        summary_table_data = [
+            {
+                "Decision Policy": "Static Threshold Baseline",
+                "Accuracy": f"{fixed.get('accuracy', 0)*100:.1f}%",
+                "F1-Score": f"{fixed.get('f1_score', 0):.4f}",
+                "Avg Latency (ms)": f"{fixed.get('avg_latency_ms', 0):.2f}",
+                "Avg Agents / Sample": f"{fixed.get('avg_agents_executed', 0):.2f}",
+                "False Negative Rate": f"{fixed.get('false_negative_rate', 0)*100:.2f}%",
+                "Mean Reward": f"{fixed.get('mean_reward', 0):.2f}",
+            },
+            {
+                "Decision Policy": "Deterministic Adaptive Policy",
+                "Accuracy": f"{det.get('accuracy', 0)*100:.1f}%",
+                "F1-Score": f"{det.get('f1_score', 0):.4f}",
+                "Avg Latency (ms)": f"{det.get('avg_latency_ms', 0):.2f}",
+                "Avg Agents / Sample": f"{det.get('avg_agents_executed', 0):.2f}",
+                "False Negative Rate": f"{det.get('false_negative_rate', 0)*100:.2f}%",
+                "Mean Reward": f"{det.get('mean_reward', 0):.2f}",
+            },
+            {
+                "Decision Policy": "Deep Q-Network (DQN) RL Policy",
+                "Accuracy": f"{rl.get('accuracy', 0)*100:.1f}%",
+                "F1-Score": f"{rl.get('f1_score', 0):.4f}",
+                "Avg Latency (ms)": f"{rl.get('avg_latency_ms', 0):.2f}",
+                "Avg Agents / Sample": f"{rl.get('avg_agents_executed', 0):.2f}",
+                "False Negative Rate": f"{rl.get('false_negative_rate', 0)*100:.2f}%",
+                "Mean Reward": f"{rl.get('mean_reward', 0):.2f}",
+            },
+        ]
+        st.dataframe(pd.DataFrame(summary_table_data), use_container_width=True, hide_index=True)
 
     st.markdown("---")
 
