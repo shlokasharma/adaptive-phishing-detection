@@ -95,17 +95,26 @@ class DetectionService:
             except Exception as exc:
                 logger.warning("Failed to load RL policy (%s), falling back to adaptive policy.", exc)
                 policy = AdaptiveEvidencePolicy()
+            max_agents = 3
         elif any(keyword in policy_lower for keyword in ("fixed", "static", "baseline")):
-            policy = None  # None delegates to default fixed threshold orchestration
+            policy = AdaptiveEvidencePolicy(
+                confidence_threshold=0.20,
+                min_evidence_count=2,  # Static baseline rigidly mandates dual-agent verification
+            )
+            max_agents = 2
         else:
-            policy = AdaptiveEvidencePolicy()
+            policy = AdaptiveEvidencePolicy(
+                confidence_threshold=0.90,
+                min_evidence_count=1,  # Adaptive policy dynamically early-stops on single decisive evidence
+            )
+            max_agents = 3
 
         return OrchestratorAgent(
             email_agent=self.email_agent,
             url_agent=self.url_agent,
             sender_agent=self.sender_agent,
             confidence_threshold=0.90,
-            max_agents=3,
+            max_agents=max_agents,
             policy=policy,
         )
 

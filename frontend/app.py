@@ -450,7 +450,7 @@ def load_baseline_test_metrics() -> dict[str, Any]:
 # ============================================================
 
 PRESET_SCENARIOS = {
-    "🚨 Early-Stopping Phishing": {
+    "⚡ Policy Demo (1 vs 2 vs 3 Agents)": {
         "mode": "email",
         "subject": "URGENT: Unauthorized payroll account access detected",
         "body": (
@@ -465,7 +465,7 @@ PRESET_SCENARIOS = {
         "sender": "security-alert@payroll-update-notice.com",
         "url": "https://payroll-verify-security-corp.com/login",
         "narrative": (
-            "Demonstrates dynamic early stopping: High lexical urgency and credential-harvesting triggers "
+            "Demonstrates Policy Contrast (1 vs 2 vs 3 Agents): High lexical urgency and credential-harvesting triggers "
             "the Email Analysis Agent with >0.95 confidence. The Deterministic Adaptive Evidence Policy terminates "
             "at Step 1, saving secondary agent computation costs."
         ),
